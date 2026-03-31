@@ -1,4 +1,5 @@
 import { getLoanSummary, getInterestRecords } from "@/lib/queries";
+import type { InterestRecord } from "@/lib/schema";
 import { buildActualSchedule, predictPayoff, addMonths } from "@/lib/calculations";
 import { ScheduleClient } from "@/components/charts/schedule-client";
 
@@ -9,7 +10,7 @@ export default function SchedulePage() {
   const { loan, outstandingBalance } = summary;
   const interestRecords = getInterestRecords(1);
 
-  const actualData = interestRecords.map((r) => ({
+  const actualData = interestRecords.map((r: InterestRecord) => ({
     month: r.month,
     emi: loan.emi,
     principal: loan.emi - r.amount,
