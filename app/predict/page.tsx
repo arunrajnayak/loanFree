@@ -1,13 +1,16 @@
-import { getLoanSummary, getScenarios, getInterestRecords } from "@/lib/queries";
+import { getLoanSummary, getInterestRecords } from "@/lib/queries";
 import { addMonths } from "@/lib/calculations";
 import { PredictorPage } from "@/components/predictor/predictor-page";
 
-export default function PredictPage() {
-  const summary = getLoanSummary(1);
+export default async function PredictPage() {
+  const [summary, interestRecords] = await Promise.all([
+    getLoanSummary(1),
+    getInterestRecords(1),
+  ]);
+
   if (!summary) return <p>Loan not found</p>;
 
   const { loan, outstandingBalance } = summary;
-  const interestRecords = getInterestRecords(1);
 
   const lastMonth = interestRecords.length > 0
     ? interestRecords[interestRecords.length - 1].month

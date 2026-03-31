@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     config: PredictionConfig & { interestRate?: number };
   };
 
-  const summary = getLoanSummary(loanId);
+  const summary = await getLoanSummary(loanId);
   if (!summary) {
     return NextResponse.json({ error: "Loan not found" }, { status: 404 });
   }

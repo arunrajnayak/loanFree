@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     conditions.push(eq(payments.type, type as "emi" | "prepayment" | "builder"));
   }
 
-  const result = db
+  const result = await db
     .select()
     .from(payments)
     .where(and(...conditions))
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   const body = await request.json();
   const db = getDb();
-  const result = db
+  const result = await db
     .insert(payments)
     .values({
       loanId: body.loanId,

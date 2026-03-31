@@ -10,12 +10,12 @@ import {
   type Payment,
 } from "./schema";
 
-export function getLoanById(id: number) {
-  return getDb().select().from(loans).where(eq(loans.id, id)).get();
+export async function getLoanById(id: number) {
+  return await getDb().select().from(loans).where(eq(loans.id, id)).get();
 }
 
-export function getDisbursements(loanId: number) {
-  return getDb()
+export async function getDisbursements(loanId: number) {
+  return await getDb()
     .select()
     .from(disbursements)
     .where(eq(disbursements.loanId, loanId))
@@ -23,12 +23,12 @@ export function getDisbursements(loanId: number) {
     .all();
 }
 
-export function getPayments(loanId: number, type?: string) {
+export async function getPayments(loanId: number, type?: string) {
   const conditions = [eq(payments.loanId, loanId)];
   if (type) {
     conditions.push(eq(payments.type, type as Payment["type"]));
   }
-  return getDb()
+  return await getDb()
     .select()
     .from(payments)
     .where(and(...conditions))
@@ -36,8 +36,8 @@ export function getPayments(loanId: number, type?: string) {
     .all();
 }
 
-export function getInterestRecords(loanId: number) {
-  return getDb()
+export async function getInterestRecords(loanId: number) {
+  return await getDb()
     .select()
     .from(interestRecords)
     .where(eq(interestRecords.loanId, loanId))
@@ -45,61 +45,60 @@ export function getInterestRecords(loanId: number) {
     .all();
 }
 
-export function getScenarios(loanId: number) {
-  return getDb()
+export async function getScenarios(loanId: number) {
+  return await getDb()
     .select()
     .from(predictionScenarios)
     .where(eq(predictionScenarios.loanId, loanId))
     .all();
 }
 
-export function getLoanSummary(loanId: number) {
-  const loan = getLoanById(loanId);
+export async function getLoanSummary(loanId: number) {
+  const loan = await getLoanById(loanId);
   if (!loan) return null;
 
-  const totalDisbursed = getDb()
-    .select({ total: sql<number>`COALESCE(SUM(${disbursements.amount}), 0)` })
-    .from(disbursements)
-    .where(eq(disbursements.loanId, loanId))
-    .get()!.total;
+  const [disbRow, bankRow, builderRow, interestRow, lastInterestRow] = await Promise.all([
+    getDb()
+      .select({ total: sql<number>`COALESCE(SUM(${disbursements.amount}), 0)` })
+      .from(disbursements)
+      .where(eq(disbursements.loanId, loanId))
+      .get(),
+    getDb()
+      .select({
+        total: sql<number>`COALESCE(SUM(${payments.amount}), 0)`,
+        totalPrincipal: sql<number>`COALESCE(SUM(${payments.principalComponent}), 0)`,
+        totalInterest: sql<number>`COALESCE(SUM(${payments.interestComponent}), 0)`,
+      })
+      .from(payments)
+      .where(and(eq(payments.loanId, loanId), sql`${payments.type} IN ('emi', 'prepayment')`))
+      .get(),
+    getDb()
+      .select({ total: sql<number>`COALESCE(SUM(${payments.amount}), 0)` })
+      .from(payments)
+      .where(and(eq(payments.loanId, loanId), eq(payments.type, "builder")))
+      .get(),
+    getDb()
+      .select({ total: sql<number>`COALESCE(SUM(${interestRecords.amount}), 0)` })
+      .from(interestRecords)
+      .where(eq(interestRecords.loanId, loanId))
+      .get(),
+    getDb()
+      .select()
+      .from(interestRecords)
+      .where(eq(interestRecords.loanId, loanId))
+      .orderBy(desc(interestRecords.month))
+      .limit(1)
+      .get(),
+  ]);
 
-  const bankPayments = getDb()
-    .select({
-      total: sql<number>`COALESCE(SUM(${payments.amount}), 0)`,
-      totalPrincipal: sql<number>`COALESCE(SUM(${payments.principalComponent}), 0)`,
-      totalInterest: sql<number>`COALESCE(SUM(${payments.interestComponent}), 0)`,
-    })
-    .from(payments)
-    .where(
-      and(
-        eq(payments.loanId, loanId),
-        sql`${payments.type} IN ('emi', 'prepayment')`
-      )
-    )
-    .get()!;
+  const totalDisbursed = disbRow!.total;
+  const bankPayments = bankRow!;
+  const builderPayments = builderRow!.total;
+  const interestTotal = interestRow!.total;
+  const lastInterest = lastInterestRow as typeof lastInterestRow & { outstandingBalance?: number | null } | undefined;
 
-  const builderPayments = getDb()
-    .select({ total: sql<number>`COALESCE(SUM(${payments.amount}), 0)` })
-    .from(payments)
-    .where(and(eq(payments.loanId, loanId), eq(payments.type, "builder")))
-    .get()!.total;
-
-  const interestTotal = getDb()
-    .select({ total: sql<number>`COALESCE(SUM(${interestRecords.amount}), 0)` })
-    .from(interestRecords)
-    .where(eq(interestRecords.loanId, loanId))
-    .get()!.total;
-
-  const lastInterest = getDb()
-    .select()
-    .from(interestRecords)
-    .where(eq(interestRecords.loanId, loanId))
-    .orderBy(desc(interestRecords.month))
-    .limit(1)
-    .get();
-
-  const outstandingBalance = lastInterest?.outstandingBalance ??
-    (loan.sanctionedAmount - bankPayments.totalPrincipal);
+  const outstandingBalance =
+    lastInterest?.outstandingBalance ?? loan.sanctionedAmount - bankPayments.totalPrincipal;
 
   return {
     loan,

@@ -1,14 +1,17 @@
 import { getLoanSummary, getInterestRecords } from "@/lib/queries";
-import type { InterestRecord } from "@/lib/schema";
 import { buildActualSchedule, predictPayoff, addMonths } from "@/lib/calculations";
 import { ScheduleClient } from "@/components/charts/schedule-client";
+import type { InterestRecord } from "@/lib/schema";
 
-export default function SchedulePage() {
-  const summary = getLoanSummary(1);
+export default async function SchedulePage() {
+  const [summary, interestRecords] = await Promise.all([
+    getLoanSummary(1),
+    getInterestRecords(1),
+  ]);
+
   if (!summary) return <p>Loan not found</p>;
 
   const { loan, outstandingBalance } = summary;
-  const interestRecords = getInterestRecords(1);
 
   const actualData = interestRecords.map((r: InterestRecord) => ({
     month: r.month,

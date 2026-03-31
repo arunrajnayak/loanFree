@@ -7,8 +7,7 @@ export default async function PaymentsPage({
   searchParams: Promise<{ type?: string }>;
 }) {
   const { type } = await searchParams;
-  const loan = getLoanById(1);
-  const allPayments = getPayments(1, type);
+  const [loan, allPayments] = await Promise.all([getLoanById(1), getPayments(1, type)]);
 
   if (!loan) return <p>Loan not found</p>;
 
