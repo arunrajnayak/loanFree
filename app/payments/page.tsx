@@ -1,0 +1,16 @@
+import { getPayments, getLoanById } from "@/lib/queries";
+import { PaymentsClient } from "@/components/payments/payments-client";
+
+export default async function PaymentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
+  const { type } = await searchParams;
+  const loan = getLoanById(1);
+  const allPayments = getPayments(1, type);
+
+  if (!loan) return <p>Loan not found</p>;
+
+  return <PaymentsClient payments={allPayments} currentType={type} />;
+}
