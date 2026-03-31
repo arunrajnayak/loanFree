@@ -1,18 +1,31 @@
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
 import * as schema from "./schema";
-import path from "path";
 
-const DB_PATH = path.join(process.cwd(), "loanfree.db");
+// Use Turso (libsql) when env vars are set, otherwise fall back to local better-sqlite3
+function createDb() {
+  if (process.env.TURSO_DATABASE_URL) {
+    const { drizzle } = require("drizzle-orm/libsql");
+    const { createClient } = require("@libsql/client");
+    const client = createClient({
+      url: process.env.TURSO_DATABASE_URL,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+    return drizzle(client, { schema });
+  }
 
-let _db: ReturnType<typeof drizzle> | null = null;
+  const { drizzle } = require("drizzle-orm/better-sqlite3");
+  const Database = require("better-sqlite3");
+  const path = require("path");
+  const sqlite = new Database(path.join(process.cwd(), "loanfree.db"));
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
+  return drizzle(sqlite, { schema });
+}
+
+let _db: ReturnType<typeof createDb> | null = null;
 
 export function getDb() {
   if (!_db) {
-    const sqlite = new Database(DB_PATH);
-    sqlite.pragma("journal_mode = WAL");
-    sqlite.pragma("foreign_keys = ON");
-    _db = drizzle(sqlite, { schema });
+    _db = createDb();
   }
   return _db;
 }
