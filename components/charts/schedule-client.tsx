@@ -168,7 +168,7 @@ export function ScheduleClient({
   lastActualMonth: string;
 }) {
   const router = useRouter();
-  const [view, setView] = useState<"yearly" | "monthly">("yearly");
+  const [view, setView] = useState<"yearly" | "monthly">("monthly");
   const [showAdd, setShowAdd] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const lastActualRowRef = useRef<HTMLTableRowElement>(null);
@@ -206,10 +206,10 @@ export function ScheduleClient({
   const yearlyData = aggregateByYear(schedule);
 
   useEffect(() => {
-    if (view === "monthly" && lastActualRowRef.current && tableContainerRef.current) {
+    if (view === "monthly" && lastActualRowRef.current) {
       lastActualRowRef.current.scrollIntoView({ block: "center" });
     }
-  }, [view]);
+  }, [view, actualMonths]);
 
   return (
     <>
@@ -355,6 +355,7 @@ export function ScheduleClient({
                   <th>Month</th>
                   <th>Status</th>
                   <th className="text-right">EMI</th>
+                  <th className="text-right">Prepayment</th>
                   <th className="text-right">Principal</th>
                   <th className="text-right">Interest</th>
                   <th className="text-right">Balance</th>
@@ -380,6 +381,9 @@ export function ScheduleClient({
                       </span>
                     </td>
                     <td className="text-right">{fmtINR(row.emi)}</td>
+                    <td className="text-right" style={{ color: row.prepayment > 0 ? "#a78bfa" : undefined }}>
+                      {row.prepayment > 0 ? fmtINR(row.prepayment) : "—"}
+                    </td>
                     <td className="text-right" style={{ color: "#10b981" }}>{fmtINR(row.principal)}</td>
                     <td className="text-right" style={{ color: "#f59e0b" }}>{fmtINR(row.interest)}</td>
                     <td className="text-right">{fmtINR(row.outstandingBalance)}</td>
