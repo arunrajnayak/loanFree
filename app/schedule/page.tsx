@@ -3,6 +3,8 @@ import { buildActualSchedule, predictPayoff, addMonths } from "@/lib/calculation
 import { ScheduleClient } from "@/components/charts/schedule-client";
 import type { InterestRecord, Disbursement, Payment } from "@/lib/schema";
 
+export const dynamic = "force-dynamic";
+
 export default async function SchedulePage() {
   const [summary, interestRecords, disbursementsList, allPayments] = await Promise.all([
     getLoanSummary(1),

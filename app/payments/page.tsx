@@ -1,6 +1,8 @@
 import { getPayments, getLoanById } from "@/lib/queries";
 import { PaymentsClient } from "@/components/payments/payments-client";
 
+export const dynamic = "force-dynamic";
+
 export default async function PaymentsPage({
   searchParams,
 }: {

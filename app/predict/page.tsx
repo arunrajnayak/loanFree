@@ -2,6 +2,8 @@ import { getLoanSummary, getInterestRecords } from "@/lib/queries";
 import { addMonths } from "@/lib/calculations";
 import { PredictorPage } from "@/components/predictor/predictor-page";
 
+export const dynamic = "force-dynamic";
+
 export default async function PredictPage() {
   const [summary, interestRecords] = await Promise.all([
     getLoanSummary(1),

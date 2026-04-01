@@ -1,6 +1,8 @@
 import { getLoanSummary, getPayments, getInterestRecords, getDisbursements } from "@/lib/queries";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const [summary, allPayments, interestRecords, disbursementsList] = await Promise.all([
     getLoanSummary(1),
