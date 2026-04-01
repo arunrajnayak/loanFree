@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { interestRecords } from "@/lib/schema";
 
@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   const body = await request.json();
 
-  // Check for duplicate month
+  // Check for duplicate month for this loan
   const existing = await getDb()
     .select()
     .from(interestRecords)
-    .where(eq(interestRecords.month, body.month))
+    .where(and(eq(interestRecords.loanId, body.loanId), eq(interestRecords.month, body.month)))
     .get();
 
   if (existing) {
