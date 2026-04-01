@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/monthly-prepay",
+      "schedule": "30 3 2 * *"
+    },
+    {
       "path": "/api/cron/monthly-emi",
       "schedule": "30 3 5 * *"
     }
