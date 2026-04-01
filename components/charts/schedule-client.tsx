@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import {
   AreaChart,
   Area,
@@ -45,16 +46,130 @@ const tooltipStyle = {
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
 
+function AddInterestDialog({ onClose, onAdded, lastMonth }: { onClose: () => void; onAdded: () => void; lastMonth: string }) {
+  // Default to the month after the last recorded month
+  const [year, mon] = lastMonth.split("-").map(Number);
+  let nextMon = mon + 1, nextYear = year;
+  if (nextMon > 12) { nextMon = 1; nextYear++; }
+  const defaultMonth = `${nextYear}-${String(nextMon).padStart(2, "0")}`;
+
+  const [month, setMonth] = useState(defaultMonth);
+  const [amount, setAmount] = useState("");
+  const [balance, setBalance] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!month || isNaN(amt) || amt <= 0) {
+      setError("Please enter a valid month and interest amount.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/interest-records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loanId: 1,
+          month,
+          amount: amt,
+          outstandingBalance: balance ? parseFloat(balance) : null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save");
+      }
+      onAdded();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "10px",
+    padding: "10px 14px",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="overlay"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <motion.div
+          key="dialog"
+          initial={{ opacity: 0, scale: 0.92, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.92, y: 20 }}
+          transition={{ duration: 0.25 }}
+          onClick={(e) => e.stopPropagation()}
+          className="glass"
+          style={{ width: "100%", maxWidth: 420, margin: "16px", padding: "28px", borderRadius: "20px" }}
+        >
+          <h2 className="text-xl font-bold mb-1" style={{ color: "var(--text-primary)" }}>Add Interest Record</h2>
+          <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>Enter the actual interest charged by the bank for a month</p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Month</label>
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={inputStyle} required />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Interest Charged (₹)</label>
+              <input type="number" min="1" step="0.01" placeholder="e.g. 57420" value={amount} onChange={(e) => setAmount(e.target.value)} style={inputStyle} required />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                Outstanding Balance (₹) <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+              </label>
+              <input type="number" min="0" step="0.01" placeholder="e.g. 9350000" value={balance} onChange={(e) => setBalance(e.target.value)} style={inputStyle} />
+            </div>
+            {error && <p className="text-xs" style={{ color: "#f87171" }}>{error}</p>}
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all" style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all" style={{ background: "rgba(59,130,246,0.25)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.3)", opacity: saving ? 0.6 : 1 }}>
+                {saving ? "Saving…" : "Add Record"}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 export function ScheduleClient({
   schedule,
   baselineSchedule,
   actualMonths,
+  lastActualMonth,
 }: {
   schedule: AmortizationRow[];
   baselineSchedule: AmortizationRow[];
   actualMonths: number;
+  lastActualMonth: string;
 }) {
+  const router = useRouter();
   const [view, setView] = useState<"yearly" | "monthly">("yearly");
+  const [showAdd, setShowAdd] = useState(false);
 
   // Recompute cumulative across the full schedule (actual + projected reset individually)
   let runCumPrincipal = 0;
@@ -89,14 +204,31 @@ export function ScheduleClient({
   const yearlyData = aggregateByYear(schedule);
 
   return (
+    <>
+    {showAdd && (
+      <AddInterestDialog
+        lastMonth={lastActualMonth}
+        onClose={() => setShowAdd(false)}
+        onAdded={() => router.refresh()}
+      />
+    )}
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8 pt-8">
-      <motion.div variants={item}>
-        <h1 className="text-3xl font-bold tracking-tight">
-          <span className="gradient-text">Amortization</span> Schedule
-        </h1>
-        <p style={{ color: "var(--text-secondary)" }} className="mt-1">
-          {actualMonths} actual months + {schedule.length - actualMonths} projected
-        </p>
+      <motion.div variants={item} className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            <span className="gradient-text">Amortization</span> Schedule
+          </h1>
+          <p style={{ color: "var(--text-secondary)" }} className="mt-1">
+            {actualMonths} actual months + {schedule.length - actualMonths} projected
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+          style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24", border: "1px solid rgba(245,158,11,0.3)" }}
+        >
+          + Add Interest
+        </button>
       </motion.div>
 
       {/* Balance Curve */}
@@ -247,6 +379,7 @@ export function ScheduleClient({
         </div>
       </motion.div>
     </motion.div>
+    </>
   );
 }
 

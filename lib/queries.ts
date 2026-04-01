@@ -57,7 +57,7 @@ export async function getLoanSummary(loanId: number) {
   const loan = await getLoanById(loanId);
   if (!loan) return null;
 
-  const [disbRow, bankRow, builderRow, interestRow, lastInterestRow] = await Promise.all([
+  const [disbRow, bankRow, builderRow, interestRow] = await Promise.all([
     getDb()
       .select({ total: sql<number>`COALESCE(SUM(${disbursements.amount}), 0)` })
       .from(disbursements)
@@ -82,23 +82,16 @@ export async function getLoanSummary(loanId: number) {
       .from(interestRecords)
       .where(eq(interestRecords.loanId, loanId))
       .get(),
-    getDb()
-      .select()
-      .from(interestRecords)
-      .where(eq(interestRecords.loanId, loanId))
-      .orderBy(desc(interestRecords.month))
-      .limit(1)
-      .get(),
   ]);
 
   const totalDisbursed = disbRow!.total;
   const bankPayments = bankRow!;
   const builderPayments = builderRow!.total;
   const interestTotal = interestRow!.total;
-  const lastInterest = lastInterestRow as typeof lastInterestRow & { outstandingBalance?: number | null } | undefined;
 
-  const outstandingBalance =
-    lastInterest?.outstandingBalance ?? loan.sanctionedAmount - bankPayments.totalPrincipal;
+  // Correct outstanding balance:
+  // disbursed + all_interest_charged - all_bank_payments (construction loan: disbursements in tranches)
+  const outstandingBalance = totalDisbursed + interestTotal - bankPayments.total;
 
   return {
     loan,

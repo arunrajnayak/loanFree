@@ -162,6 +162,10 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* Table styling */
 @layer base {
+  button, [role="button"], input[type="submit"], input[type="button"], label[for], a {
+    cursor: pointer;
+  }
+
   table {
     width: 100%;
     border-collapse: separate;
