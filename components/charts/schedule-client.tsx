@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -170,6 +170,8 @@ export function ScheduleClient({
   const router = useRouter();
   const [view, setView] = useState<"yearly" | "monthly">("yearly");
   const [showAdd, setShowAdd] = useState(false);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const lastActualRowRef = useRef<HTMLTableRowElement>(null);
 
   // Recompute cumulative across the full schedule (actual + projected reset individually)
   let runCumPrincipal = 0;
@@ -203,13 +205,19 @@ export function ScheduleClient({
 
   const yearlyData = aggregateByYear(schedule);
 
+  useEffect(() => {
+    if (view === "monthly" && lastActualRowRef.current && tableContainerRef.current) {
+      lastActualRowRef.current.scrollIntoView({ block: "center" });
+    }
+  }, [view]);
+
   return (
     <>
     {showAdd && (
       <AddInterestDialog
         lastMonth={lastActualMonth}
         onClose={() => setShowAdd(false)}
-        onAdded={() => router.refresh()}
+        onAdded={() => { setShowAdd(false); setView("monthly"); router.refresh(); }}
       />
     )}
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8 pt-8">
@@ -316,7 +324,7 @@ export function ScheduleClient({
           </div>
         </div>
 
-        <div className="overflow-auto max-h-[500px]">
+        <div ref={tableContainerRef} className="overflow-auto max-h-[500px]">
           {view === "yearly" ? (
             <table>
               <thead>
@@ -353,8 +361,12 @@ export function ScheduleClient({
                 </tr>
               </thead>
               <tbody>
-                {schedule.map((row) => (
-                  <tr key={row.month} style={{ opacity: row.isActual ? 1 : 0.6 }}>
+                {schedule.map((row, i) => (
+                  <tr
+                    key={row.month}
+                    ref={i === actualMonths - 1 ? lastActualRowRef : undefined}
+                    style={{ opacity: row.isActual ? 1 : 0.6 }}
+                  >
                     <td>{monthLabel(row.month)}</td>
                     <td>
                       <span
