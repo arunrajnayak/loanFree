@@ -14,7 +14,18 @@ export async function GET(request: NextRequest) {
     .orderBy(desc(interestRecords.month))
     .all();
 
-  return NextResponse.json(result);
+  const plain = result.map((r: any) => ({
+    id: r.id,
+    loanId: r.loanId,
+    month: r.month,
+    amount: r.amount,
+    outstandingBalance: r.outstandingBalance,
+  }));
+
+  return new NextResponse(JSON.stringify(plain), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export async function POST(request: Request) {
@@ -45,7 +56,18 @@ export async function POST(request: Request) {
     .returning()
     .get();
 
-  return NextResponse.json(result, { status: 201 });
+  const plain = {
+    id: result.id,
+    loanId: result.loanId,
+    month: result.month,
+    amount: result.amount,
+    outstandingBalance: result.outstandingBalance,
+  };
+
+  return new NextResponse(JSON.stringify(plain), {
+    status: 201,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 export async function PUT(request: Request) {
@@ -61,5 +83,16 @@ export async function PUT(request: Request) {
     .returning()
     .get();
 
-  return NextResponse.json(result);
+  const plain = {
+    id: result.id,
+    loanId: result.loanId,
+    month: result.month,
+    amount: result.amount,
+    outstandingBalance: result.outstandingBalance,
+  };
+
+  return new NextResponse(JSON.stringify(plain), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 }
