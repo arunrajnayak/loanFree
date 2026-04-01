@@ -91,9 +91,6 @@ export function DashboardClient({
         <h1 className="text-3xl font-bold tracking-tight">
           <span className="gradient-text">Park East</span> Dashboard
         </h1>
-        <p style={{ color: "var(--text-secondary)" }} className="mt-1 text-base">
-          {fmtINR(loan.sanctionedAmount)} @ {loan.interestRate}% &middot; {loan.tenureYears} years &middot; EMI {fmtINR(loan.emi)}
-        </p>
       </motion.div>
 
       {/* Stats Grid */}
