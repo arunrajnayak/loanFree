@@ -249,10 +249,10 @@ export function ScheduleClient({
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#5a5a6e" }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={fmtL} tick={{ fontSize: 11, fill: "#5a5a6e" }} axisLine={false} tickLine={false} />
-            <Tooltip {...tooltipStyle} formatter={(v: any, n: any) => [fmtINR(Number(v)), n === "balance" ? "With Prepay" : "No Prepay"]} />
-            <Legend formatter={(v) => v === "balance" ? "With Prepayment" : "Without Prepayment"} wrapperStyle={{ color: "#8b8b9e", fontSize: "12px" }} />
-            <Line type="monotone" dataKey="balance" stroke="#10b981" strokeWidth={2.5} dot={false} />
-            <Line type="monotone" dataKey="baseline" stroke="#ef4444" strokeWidth={2} strokeDasharray="6 4" dot={false} opacity={0.6} />
+            <Tooltip {...tooltipStyle} formatter={(v: any, n: any) => [fmtINR(Number(v)), n]} />
+            <Legend wrapperStyle={{ color: "#8b8b9e", fontSize: "12px" }} />
+            <Line type="monotone" dataKey="baseline" stroke="#ef4444" strokeWidth={2} strokeDasharray="6 4" dot={false} opacity={0.6} name="Without Prepayment" />
+            <Line type="monotone" dataKey="balance" stroke="#10b981" strokeWidth={2.5} dot={false} name="With Prepayment" />
           </LineChart>
         </ResponsiveContainer>
       </motion.div>
