@@ -58,6 +58,39 @@ export default async function SchedulePage() {
 
   const actualSchedule = buildActualSchedule(actualData);
 
+  // Build counterfactual "no prepay" history: same disbursements + interest,
+  // but only subtract the EMI payment each month (ignore prepayments).
+  // This shows what the balance would have been without any extra payments.
+  let runningBalanceNoPrep = 0;
+
+  const actualDataNoPrep = (interestRecords as InterestRecord[]).map((r: InterestRecord) => {
+    const m = r.month;
+
+    const monthDisb = (disbursementsList as Disbursement[])
+      .filter((d) => d.date.substring(0, 7) === m)
+      .reduce((s, d) => s + d.amount, 0);
+    runningBalanceNoPrep += monthDisb;
+
+    runningBalanceNoPrep += r.amount;
+
+    // Only subtract the EMI payment — no prepayments
+    const emiOnly = (allPayments as Payment[]).find(
+      (p) => p.type === "emi" && p.date.substring(0, 7) === m
+    )?.amount ?? 0;
+    runningBalanceNoPrep -= emiOnly;
+
+    return {
+      month: m,
+      emi: emiOnly,
+      principal: Math.max(0, emiOnly - r.amount),
+      interest: r.amount,
+      outstandingBalance: runningBalanceNoPrep,
+      prepayment: 0,
+    };
+  });
+
+  const actualScheduleNoPrep = buildActualSchedule(actualDataNoPrep);
+
   const lastMonth =
     actualSchedule.length > 0
       ? actualSchedule[actualSchedule.length - 1].month
@@ -74,8 +107,9 @@ export default async function SchedulePage() {
     remainingMonths
   );
 
+  // Baseline projects forward from the higher no-prepay balance with no extra payments
   const baseline = predictPayoff(
-    currentBalance, loan.interestRate, loan.emi, nextMonth,
+    runningBalanceNoPrep, loan.interestRate, loan.emi, nextMonth,
     { extraMonthly: 0, extraEmiPerYear: 0, annualHikePct: 0 },
     remainingMonths
   );
@@ -83,7 +117,7 @@ export default async function SchedulePage() {
   return (
     <ScheduleClient
       schedule={[...actualSchedule, ...projection.schedule]}
-      baselineSchedule={[...actualSchedule, ...baseline.schedule]}
+      baselineSchedule={[...actualScheduleNoPrep, ...baseline.schedule]}
       actualMonths={actualSchedule.length}
       lastActualMonth={lastMonth}
     />
