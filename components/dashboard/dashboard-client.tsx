@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useEffect, useState, useMemo } from "react";
+import { motion, animate } from "framer-motion";
 import {
   AreaChart,
   Area,
@@ -36,14 +37,41 @@ function monthLabel(m: string) {
   return `${months[parseInt(mo) - 1]} '${y.slice(2)}`;
 }
 
+// Animated Counter component for that premium SaaS feel
+function AnimatedCounter({
+  value,
+  duration = 1.5,
+  formatter = (v: number) => String(Math.round(v)),
+  delay = 0,
+}: {
+  value: number;
+  duration?: number;
+  formatter?: (v: number) => string;
+  delay?: number;
+}) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const controls = animate(0, value, {
+      duration,
+      delay,
+      ease: "easeOut",
+      onUpdate: (latest) => setDisplayValue(latest),
+    });
+    return () => controls.stop();
+  }, [value, duration, delay]);
+
+  return <>{formatter(displayValue)}</>;
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.08 } },
 } as const;
 
 const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
 };
 
 interface DashboardStats {
@@ -95,104 +123,211 @@ export function DashboardClient({
   ];
 
   const statCards = [
-    { label: "Outstanding Balance", value: fmtL(stats.outstandingBalance), sub: fmtINR(stats.outstandingBalance), gradient: "from-red-500/10 to-orange-500/10", borderGlow: "from-red-500 to-orange-500", accent: "#ef4444" },
-    { label: "Total Disbursed", value: fmtL(stats.totalDisbursed), sub: `${stats.disbursementCount} tranches`, gradient: "from-blue-500/10 to-cyan-500/10", borderGlow: "from-blue-500 to-cyan-500", accent: "#3b82f6" },
-    { label: "Total Paid to Bank", value: fmtL(stats.totalPaidToBank), sub: "EMI + Prepayments", gradient: "from-emerald-500/10 to-teal-500/10", borderGlow: "from-emerald-500 to-teal-500", accent: "#10b981" },
-    { label: "Interest Paid", value: fmtL(stats.totalInterestPaid), sub: fmtINR(stats.totalInterestPaid), gradient: "from-orange-500/10 to-yellow-500/10", borderGlow: "from-orange-500 to-yellow-500", accent: "#f59e0b" },
-    { label: "Principal Repaid", value: fmtL(stats.totalPrincipalPaid), sub: fmtINR(stats.totalPrincipalPaid), gradient: "from-green-500/10 to-emerald-500/10", borderGlow: "from-green-500 to-emerald-500", accent: "#22c55e" },
-    { label: "Builder (Own Contribution)", value: fmtL(stats.totalPaidToBuilder), sub: "Own funds paid", gradient: "from-purple-500/10 to-pink-500/10", borderGlow: "from-purple-500 to-pink-500", accent: "#8b5cf6" },
+    { label: "Outstanding Balance", value: stats.outstandingBalance, formatter: fmtL, sub: fmtINR(stats.outstandingBalance), gradient: "from-red-500/20 to-orange-500/20", glowColor: "rgba(239, 68, 68, 0.15)", accent: "#ef4444" },
+    { label: "Total Disbursed", value: stats.totalDisbursed, formatter: fmtL, sub: `${stats.disbursementCount} tranches`, gradient: "from-blue-500/20 to-cyan-500/20", glowColor: "rgba(59, 130, 246, 0.15)", accent: "#3b82f6" },
+    { label: "Total Paid to Bank", value: stats.totalPaidToBank, formatter: fmtL, sub: "EMI + Prepayments", gradient: "from-emerald-500/20 to-teal-500/20", glowColor: "rgba(16, 185, 129, 0.15)", accent: "#10b981" },
+    { label: "Interest Paid", value: stats.totalInterestPaid, formatter: fmtL, sub: fmtINR(stats.totalInterestPaid), gradient: "from-orange-500/20 to-yellow-500/20", glowColor: "rgba(245, 158, 11, 0.15)", accent: "#f59e0b" },
+    { label: "Principal Repaid", value: stats.totalPrincipalPaid, formatter: fmtL, sub: fmtINR(stats.totalPrincipalPaid), gradient: "from-green-500/20 to-emerald-500/20", glowColor: "rgba(34, 197, 94, 0.15)", accent: "#22c55e" },
+    { label: "Builder (Own Contribution)", value: stats.totalPaidToBuilder, formatter: fmtL, sub: "Own funds paid", gradient: "from-purple-500/20 to-pink-500/20", glowColor: "rgba(139, 92, 246, 0.15)", accent: "#8b5cf6" },
   ];
 
   const pctRepaid = stats.totalDisbursed > 0 ? (stats.totalPrincipalPaid / stats.totalDisbursed) * 100 : 0;
+  const pctTimeElapsed = (stats.emiPaymentsCount / (loan.tenureYears * 12)) * 100;
+
+  // SVG Circular Ring parameters
+  const ringRadius = 36;
+  const strokeWidth = 5;
+  const normalizedRadius = ringRadius - strokeWidth * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+
+  const repayStrokeOffset = circumference - (pctRepaid / 100) * circumference;
+  const elapsedStrokeOffset = circumference - (pctTimeElapsed / 100) * circumference;
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8 pt-8">
-      {/* Header */}
-      <motion.div variants={item} className="flex justify-between items-end">
+      {/* Header with extra glow & animation */}
+      <motion.div variants={item} className="flex justify-between items-end border-b pb-4 border-white/5 relative">
+        <div className="absolute -top-10 left-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-10 right-1/4 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+        
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            <span className="gradient-text">Park East</span> Dashboard
+          <span className="text-[10px] uppercase font-bold tracking-widest text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/20">
+            Active Loan Tracker
+          </span>
+          <h1 className="text-4xl font-extrabold tracking-tight mt-3">
+            <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-fill-transparent">
+              Park East
+            </span>{" "}
+            Dashboard
           </h1>
-          <p style={{ color: "var(--text-secondary)" }} className="text-sm mt-1">
+          <p style={{ color: "var(--text-secondary)" }} className="text-sm mt-1.5 font-medium">
             Tracking Home Loan &middot; {loan.interestRate}% Interest Rate &middot; {loan.tenureYears} Years Tenure
           </p>
         </div>
       </motion.div>
 
-      {/* KPI Milestone Cards Strip */}
-      <motion.div variants={item} className="grid gap-4 sm:grid-cols-3">
-        {/* Progress Card */}
-        <div className="glass p-5 flex flex-col justify-between relative overflow-hidden pulse-glow">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-teal-500/5 opacity-50" />
-          <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
+      {/* KPI Milestone Cards Strip - Bold, Modern, High Contrast */}
+      <motion.div variants={item} className="grid gap-6 sm:grid-cols-3">
+        {/* Progress Card (Circular Progress) */}
+        <motion.div
+          whileHover={{ y: -6, scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 350, damping: 22 }}
+          className="glass p-6 relative overflow-hidden flex items-center justify-between border-emerald-500/20 hover:border-emerald-500/40"
+          style={{ boxShadow: "0 8px 32px 0 rgba(16, 185, 129, 0.05)" }}
+        >
+          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="space-y-1 z-10">
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">
               Loan Repaid Progress
             </p>
-            <p className="mt-2 text-3xl font-extrabold text-white">
-              {pctRepaid.toFixed(1)}%
+            <p className="text-4xl font-black text-white">
+              <AnimatedCounter value={pctRepaid} formatter={(v) => `${v.toFixed(1)}%`} />
             </p>
-            <div className="w-full bg-white/5 rounded-full h-2.5 mt-3 overflow-hidden border border-white/5">
-              <div className="bg-gradient-to-r from-emerald-400 to-teal-500 h-full rounded-full" style={{ width: `${pctRepaid}%` }} />
-            </div>
-            <p className="text-[11px] mt-2 text-slate-400">
-              {fmtL(stats.totalPrincipalPaid)} repaid of {fmtL(stats.totalDisbursed)} disbursed
+            <p className="text-[11px] text-slate-400 leading-normal pt-1">
+              <span className="text-emerald-300 font-semibold">{fmtL(stats.totalPrincipalPaid)}</span> repaid of {fmtL(stats.totalDisbursed)} disbursed
             </p>
           </div>
-        </div>
+          <div className="relative flex items-center justify-center z-10">
+            <svg height={ringRadius * 2} width={ringRadius * 2} className="transform -rotate-90">
+              <circle
+                stroke="rgba(255, 255, 255, 0.04)"
+                fill="transparent"
+                strokeWidth={strokeWidth}
+                r={normalizedRadius}
+                cx={ringRadius}
+                cy={ringRadius}
+              />
+              <motion.circle
+                stroke="#10b981"
+                fill="transparent"
+                strokeWidth={strokeWidth}
+                strokeDasharray={circumference + ' ' + circumference}
+                initial={{ strokeDashoffset: circumference }}
+                animate={{ strokeDashoffset: repayStrokeOffset }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                r={normalizedRadius}
+                cx={ringRadius}
+                cy={ringRadius}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute text-[10px] font-bold text-emerald-400">
+              {Math.round(pctRepaid)}%
+            </div>
+          </div>
+        </motion.div>
 
         {/* Timeline Progress */}
-        <div className="glass p-5 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-cyan-500/5 opacity-50" />
-          <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
+        <motion.div
+          whileHover={{ y: -6, scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 350, damping: 22 }}
+          className="glass p-6 relative overflow-hidden flex items-center justify-between border-blue-500/20 hover:border-blue-500/40"
+          style={{ boxShadow: "0 8px 32px 0 rgba(59, 130, 246, 0.05)" }}
+        >
+          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="space-y-1 z-10">
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-400">
               EMIs Completed
             </p>
-            <p className="mt-2 text-3xl font-extrabold text-white">
-              {stats.emiPaymentsCount} Months
+            <p className="text-4xl font-black text-white">
+              <AnimatedCounter value={stats.emiPaymentsCount} /> Months
             </p>
-            <p className="text-[11px] mt-4 text-slate-400">
-              {loan.tenureYears * 12 - stats.emiPaymentsCount} months remaining in original schedule
-            </p>
-          </div>
-        </div>
-
-        {/* Months Saved */}
-        <div className="glass p-5 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-orange-500/5 opacity-50" />
-          <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-400">
-              Tenure Saved So Far
-            </p>
-            <p className="mt-2 text-3xl font-extrabold text-amber-400">
-              {stats.totalMonthsSaved} Months
-            </p>
-            <p className="text-[11px] mt-4 text-slate-400">
-              Saved ~{(stats.totalMonthsSaved / 12).toFixed(1)} years off the life of the loan!
+            <p className="text-[11px] text-slate-400 leading-normal pt-1">
+              <span className="text-blue-300 font-semibold">{loan.tenureYears * 12 - stats.emiPaymentsCount}</span> months remaining
             </p>
           </div>
-        </div>
-      </motion.div>
-
-      {/* Stats Grid */}
-      <motion.div variants={item} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {statCards.map((s) => (
-          <div key={s.label} className="glass p-5 relative overflow-hidden group">
-            <div className={`absolute inset-0 bg-gradient-to-br ${s.gradient} opacity-20 transition-opacity duration-300 group-hover:opacity-30`} />
-            <div className="relative">
-              <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                {s.label}
-              </p>
-              <p className="mt-2 text-2xl font-bold" style={{ color: s.accent }}>
-                {s.value}
-              </p>
-              <p className="mt-0.5 text-xs" style={{ color: "var(--text-secondary)" }}>{s.sub}</p>
+          <div className="relative flex items-center justify-center z-10">
+            <svg height={ringRadius * 2} width={ringRadius * 2} className="transform -rotate-90">
+              <circle
+                stroke="rgba(255, 255, 255, 0.04)"
+                fill="transparent"
+                strokeWidth={strokeWidth}
+                r={normalizedRadius}
+                cx={ringRadius}
+                cy={ringRadius}
+              />
+              <motion.circle
+                stroke="#3b82f6"
+                fill="transparent"
+                strokeWidth={strokeWidth}
+                strokeDasharray={circumference + ' ' + circumference}
+                initial={{ strokeDashoffset: circumference }}
+                animate={{ strokeDashoffset: elapsedStrokeOffset }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                r={normalizedRadius}
+                cx={ringRadius}
+                cy={ringRadius}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute text-[10px] font-bold text-blue-400">
+              {Math.round(pctTimeElapsed)}%
             </div>
           </div>
+        </motion.div>
+
+        {/* Months Saved */}
+        <motion.div
+          whileHover={{ y: -6, scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 350, damping: 22 }}
+          className="glass p-6 relative overflow-hidden flex items-center justify-between border-amber-500/20 hover:border-amber-500/40"
+          style={{ boxShadow: "0 8px 32px 0 rgba(245, 158, 11, 0.05)" }}
+        >
+          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="space-y-1 z-10">
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              Tenure Saved So Far
+            </p>
+            <p className="text-4xl font-black text-amber-400">
+              <AnimatedCounter value={stats.totalMonthsSaved} /> Months
+            </p>
+            <p className="text-[11px] text-slate-400 leading-normal pt-1">
+              Saved ~<span className="text-amber-300 font-semibold">{(stats.totalMonthsSaved / 12).toFixed(1)}</span> years off loan life!
+            </p>
+          </div>
+          <div className="relative flex items-center justify-center z-10">
+            {/* Glowing Custom Trophy Icon */}
+            <div className="h-[64px] w-[64px] bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trophy">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                <path d="M4 22h16" />
+                <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34" />
+                <path d="M12 2a6 6 0 0 1 6 6v5a6 6 0 0 1-6 6 6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z" />
+              </svg>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* Stats Grid - Modern hover & micro-interactions */}
+      <motion.div variants={item} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {statCards.map((s) => (
+          <motion.div
+            key={s.label}
+            whileHover={{ y: -4, scale: 1.01 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="glass p-5 relative overflow-hidden group border-white/5 hover:border-white/10"
+            style={{
+              boxShadow: `0 4px 20px 0 ${s.glowColor}`,
+            }}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${s.gradient} opacity-20 transition-opacity duration-300 group-hover:opacity-30`} />
+            <div className="relative">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                {s.label}
+              </p>
+              <p className="mt-2 text-3xl font-extrabold" style={{ color: s.accent }}>
+                <AnimatedCounter value={s.value} formatter={s.formatter} />
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500 font-medium">{s.sub}</p>
+            </div>
+          </motion.div>
         ))}
       </motion.div>
 
       {/* Balance Trend Chart (Full Width) */}
-      <motion.div variants={item} className="glass p-6">
+      <motion.div variants={item} className="glass p-6 border-white/5">
         <h3 className="text-sm font-semibold mb-4 text-slate-300">
           Cumulative Outstanding Balance Trend (Prepay vs No-Prepay)
         </h3>
@@ -217,7 +352,7 @@ export function DashboardClient({
       {/* Charts Row */}
       <motion.div variants={item} className="grid gap-6 lg:grid-cols-5">
         {/* Interest Trend */}
-        <div className="glass p-6 lg:col-span-3">
+        <div className="glass p-6 lg:col-span-3 border-white/5">
           <h3 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
             Monthly Interest Charged
           </h3>
@@ -244,7 +379,7 @@ export function DashboardClient({
         </div>
 
         {/* Donut with Detail Legend */}
-        <div className="glass p-6 lg:col-span-2">
+        <div className="glass p-6 lg:col-span-2 border-white/5">
           <h3 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
             Payment Breakdown
           </h3>
@@ -287,7 +422,7 @@ export function DashboardClient({
       </motion.div>
 
       {/* Recent Payments */}
-      <motion.div variants={item} className="glass p-6">
+      <motion.div variants={item} className="glass p-6 border-white/5">
         <h3 className="text-sm font-medium mb-4" style={{ color: "var(--text-secondary)" }}>
           Recent Payments
         </h3>
