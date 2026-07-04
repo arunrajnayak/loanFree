@@ -55,6 +55,8 @@ export default async function SchedulePage() {
       interest: r.amount,
       outstandingBalance: runningBalance,
       prepayment: monthPrepay,
+      interestRecordId: r.id,
+      actualOutstandingBalance: r.outstandingBalance,
     };
   });
 

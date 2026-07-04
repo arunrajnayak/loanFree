@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { Pencil, X } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -156,6 +157,119 @@ function AddInterestDialog({ onClose, onAdded, lastMonth }: { onClose: () => voi
   );
 }
 
+function EditInterestDialog({
+  record,
+  onClose,
+  onSaved,
+}: {
+  record: { id: number; month: string; amount: number; outstandingBalance: number | null };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [amount, setAmount] = useState(String(record.amount));
+  const [balance, setBalance] = useState(record.outstandingBalance ? String(record.outstandingBalance) : "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
+      setError("Please enter a valid interest amount.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/interest-records", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: record.id,
+          amount: amt,
+          outstandingBalance: balance ? parseFloat(balance) : null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to update record");
+      }
+      onSaved();
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: "10px",
+    padding: "10px 14px",
+    color: "var(--text-primary)",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="overlay"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <motion.div
+          key="dialog"
+          initial={{ opacity: 0, scale: 0.92, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.92, y: 20 }}
+          transition={{ duration: 0.25 }}
+          onClick={(e) => e.stopPropagation()}
+          className="glass"
+          style={{ width: "100%", maxWidth: 420, margin: "16px", padding: "28px", borderRadius: "20px" }}
+        >
+          <div className="flex justify-between items-center mb-1">
+            <h2 className="text-xl font-bold font-sans" style={{ color: "var(--text-primary)" }}>Edit Interest Record</h2>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/5 transition-colors">
+              <X size={16} style={{ color: "var(--text-secondary)" }} />
+            </button>
+          </div>
+          <p className="text-sm mb-6" style={{ color: "var(--text-muted)" }}>
+            Modify interest charged for <span className="font-semibold text-white">{monthLabel(record.month)}</span>
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>Interest Charged (₹)</label>
+              <input type="number" min="1" step="0.01" placeholder="e.g. 57420" value={amount} onChange={(e) => setAmount(e.target.value)} style={inputStyle} required />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
+                Outstanding Balance (₹) <span style={{ color: "var(--text-muted)" }}>(optional)</span>
+              </label>
+              <input type="number" min="0" step="0.01" placeholder="e.g. 9350000" value={balance} onChange={(e) => setBalance(e.target.value)} style={inputStyle} />
+            </div>
+            {error && <p className="text-xs" style={{ color: "#f87171" }}>{error}</p>}
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all" style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                Cancel
+              </button>
+              <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all" style={{ background: "rgba(59,130,246,0.25)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.3)", opacity: saving ? 0.6 : 1 }}>
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 export function ScheduleClient({
   schedule,
   baselineSchedule,
@@ -170,6 +284,7 @@ export function ScheduleClient({
   const router = useRouter();
   const [view, setView] = useState<"yearly" | "monthly">("monthly");
   const [showAdd, setShowAdd] = useState(false);
+  const [editRecord, setEditRecord] = useState<{ id: number; month: string; amount: number; outstandingBalance: number | null } | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const lastActualRowRef = useRef<HTMLTableRowElement>(null);
 
@@ -218,6 +333,13 @@ export function ScheduleClient({
         lastMonth={lastActualMonth}
         onClose={() => setShowAdd(false)}
         onAdded={() => { setShowAdd(false); setView("monthly"); router.refresh(); }}
+      />
+    )}
+    {editRecord && (
+      <EditInterestDialog
+        record={editRecord}
+        onClose={() => setEditRecord(null)}
+        onSaved={() => { setEditRecord(null); router.refresh(); }}
       />
     )}
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8 pt-8">
@@ -350,7 +472,7 @@ export function ScheduleClient({
             </table>
           ) : (
             <table>
-              <thead>
+               <thead>
                 <tr>
                   <th>Month</th>
                   <th>Status</th>
@@ -359,6 +481,7 @@ export function ScheduleClient({
                   <th className="text-right">Principal</th>
                   <th className="text-right">Interest</th>
                   <th className="text-right">Balance</th>
+                  <th className="text-center w-20">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -387,6 +510,24 @@ export function ScheduleClient({
                     <td className="text-right" style={{ color: "#10b981" }}>{fmtINR(row.principal)}</td>
                     <td className="text-right" style={{ color: "#f59e0b" }}>{fmtINR(row.interest)}</td>
                     <td className="text-right">{fmtINR(row.outstandingBalance)}</td>
+                    <td className="text-center">
+                      {row.isActual && row.interestRecordId ? (
+                        <button
+                          onClick={() => setEditRecord({
+                            id: row.interestRecordId!,
+                            month: row.month,
+                            amount: row.interest,
+                            outstandingBalance: row.actualOutstandingBalance ?? null,
+                          })}
+                          className="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-amber-400 transition-all inline-flex"
+                          title="Edit Interest Record"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -8,6 +8,8 @@ export interface AmortizationRow {
   isActual: boolean; // true = from bank data, false = projected
   cumulativePrincipal: number;
   cumulativeInterest: number;
+  interestRecordId?: number;
+  actualOutstandingBalance?: number | null;
 }
 
 export interface PredictionConfig {
@@ -109,6 +111,8 @@ export function buildActualSchedule(
     interest: number;
     outstandingBalance: number;
     prepayment: number;
+    interestRecordId?: number;
+    actualOutstandingBalance?: number | null;
   }[]
 ): AmortizationRow[] {
   let cumPrincipal = 0;
