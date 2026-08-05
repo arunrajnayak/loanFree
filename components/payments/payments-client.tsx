@@ -515,23 +515,20 @@ export function PaymentsClient({
             >
               <Download size={15} /> Export CSV
             </button>
-            {isDisbTab ? (
-              <button
-                onClick={() => setShowAddDisb(true)}
-                className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)" }}
-              >
-                + Add Disbursement
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowAdd(true)}
-                className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
-                style={{ background: "rgba(59,130,246,0.2)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.3)" }}
-              >
-                + Add Payment
-              </button>
-            )}
+            <button
+              onClick={() => setShowAddDisb(true)}
+              className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+              style={{ background: "rgba(34,197,94,0.2)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)" }}
+            >
+              + Add Disbursement
+            </button>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
+              style={{ background: "rgba(59,130,246,0.2)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.3)" }}
+            >
+              + Add Payment
+            </button>
           </div>
         </motion.div>
 
