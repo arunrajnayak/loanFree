@@ -5,6 +5,7 @@ export interface AmortizationRow {
   interest: number;
   outstandingBalance: number;
   prepayment: number;
+  disbursed?: number;          // bank tranche disbursed this month
   isActual: boolean; // true = from bank data, false = projected
   cumulativePrincipal: number;
   cumulativeInterest: number;

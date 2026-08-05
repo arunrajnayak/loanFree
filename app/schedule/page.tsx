@@ -17,21 +17,32 @@ export default async function SchedulePage() {
 
   const { loan } = summary;
 
-  // Build balance month-by-month from actual disbursements + interest - bank payments
-  // This is the correct calculation: no assumption about full 1.1Cr sanctioned amount
+  // Collect all unique months that have either an interest record or a disbursement
+  const interestByMonth = new Map<string, InterestRecord>(
+    (interestRecords as InterestRecord[]).map((r) => [r.month, r])
+  );
+  const disbMonths = new Set<string>(
+    (disbursementsList as Disbursement[]).map((d) => d.date.substring(0, 7))
+  );
+  const allMonths = Array.from(
+    new Set([...interestByMonth.keys(), ...disbMonths])
+  ).sort();
+
+  // Build balance month-by-month
   let runningBalance = 0;
 
-  const actualData = interestRecords.map((r: InterestRecord) => {
-    const m = r.month; // "YYYY-MM"
+  const actualData = allMonths.map((m) => {
+    const r = interestByMonth.get(m);
 
-    // Add disbursements that fall in this month
-    const monthDisb = (disbursementsList as Disbursement[])
+    // Add disbursements for this month
+    const monthDisbAmount = (disbursementsList as Disbursement[])
       .filter((d) => d.date.substring(0, 7) === m)
       .reduce((s, d) => s + d.amount, 0);
-    runningBalance += monthDisb;
+    runningBalance += monthDisbAmount;
 
-    // Add interest charged by bank
-    runningBalance += r.amount;
+    // Add interest charged (0 if no interest record yet)
+    const interestCharged = r?.amount ?? 0;
+    runningBalance += interestCharged;
 
     // Subtract all EMI + prepayments made in this month
     const bankPmts = (allPayments as Payment[]).filter(
@@ -40,44 +51,41 @@ export default async function SchedulePage() {
     const monthPaid = bankPmts.reduce((s, p) => s + p.amount, 0);
     runningBalance -= monthPaid;
 
-    // Use actual paid amount; 0 if no payment this month (e.g. pre-EMI construction phase)
     const monthEmi = bankPmts.find((p) => p.type === "emi")?.amount ?? 0;
     const monthPrepay = bankPmts
       .filter((p) => p.type === "prepayment")
       .reduce((s, p) => s + p.amount, 0);
-    // Principal = total bank payment minus interest charged (can be 0 or negative if pre-EMI)
-    const principal = Math.max(0, monthPaid - r.amount);
+    const principal = Math.max(0, monthPaid - interestCharged);
 
     return {
       month: m,
       emi: monthEmi,
       principal,
-      interest: r.amount,
+      interest: interestCharged,
       outstandingBalance: runningBalance,
       prepayment: monthPrepay,
-      interestRecordId: r.id,
-      actualOutstandingBalance: r.outstandingBalance,
+      disbursed: monthDisbAmount,
+      interestRecordId: r?.id,
+      actualOutstandingBalance: r?.outstandingBalance ?? null,
     };
   });
 
   const actualSchedule = buildActualSchedule(actualData);
 
-  // Build counterfactual "no prepay" history: same disbursements + interest,
-  // but only subtract the EMI payment each month (ignore prepayments).
-  // This shows what the balance would have been without any extra payments.
+  // Baseline: same disbursements + interest, but only subtract EMI (no prepayments)
   let runningBalanceNoPrep = 0;
 
-  const actualDataNoPrep = (interestRecords as InterestRecord[]).map((r: InterestRecord) => {
-    const m = r.month;
+  const actualDataNoPrep = allMonths.map((m) => {
+    const r = interestByMonth.get(m);
 
-    const monthDisb = (disbursementsList as Disbursement[])
+    const monthDisbAmount = (disbursementsList as Disbursement[])
       .filter((d) => d.date.substring(0, 7) === m)
       .reduce((s, d) => s + d.amount, 0);
-    runningBalanceNoPrep += monthDisb;
+    runningBalanceNoPrep += monthDisbAmount;
 
-    runningBalanceNoPrep += r.amount;
+    const interestCharged = r?.amount ?? 0;
+    runningBalanceNoPrep += interestCharged;
 
-    // Only subtract the EMI payment — no prepayments
     const emiOnly = (allPayments as Payment[]).find(
       (p) => p.type === "emi" && p.date.substring(0, 7) === m
     )?.amount ?? 0;
@@ -86,10 +94,11 @@ export default async function SchedulePage() {
     return {
       month: m,
       emi: emiOnly,
-      principal: Math.max(0, emiOnly - r.amount),
-      interest: r.amount,
+      principal: Math.max(0, emiOnly - interestCharged),
+      interest: interestCharged,
       outstandingBalance: runningBalanceNoPrep,
       prepayment: 0,
+      disbursed: monthDisbAmount,
     };
   });
 
@@ -102,7 +111,6 @@ export default async function SchedulePage() {
 
   const nextMonth = addMonths(lastMonth, 1);
   const remainingMonths = loan.tenureYears * 12 - actualSchedule.length;
-  // Use the actual running balance (not the seeded/summary value) for projection
   const currentBalance = runningBalance;
 
   const projection = predictPayoff(
@@ -111,7 +119,6 @@ export default async function SchedulePage() {
     remainingMonths
   );
 
-  // Baseline projects forward from the higher no-prepay balance with no extra payments
   const baseline = predictPayoff(
     runningBalanceNoPrep, loan.interestRate, loan.emi, nextMonth,
     { extraMonthly: 0, extraEmiPerYear: 0, annualHikePct: 0 },

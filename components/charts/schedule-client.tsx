@@ -476,6 +476,7 @@ export function ScheduleClient({
                 <tr>
                   <th>Month</th>
                   <th>Status</th>
+                  <th className="text-right">Disbursed</th>
                   <th className="text-right">EMI</th>
                   <th className="text-right">Prepayment</th>
                   <th className="text-right">Principal</th>
@@ -502,6 +503,9 @@ export function ScheduleClient({
                       >
                         {row.isActual ? "Actual" : "Projected"}
                       </span>
+                    </td>
+                    <td className="text-right" style={{ color: row.disbursed ? "#60a5fa" : undefined }}>
+                      {row.disbursed ? fmtINR(row.disbursed) : "—"}
                     </td>
                     <td className="text-right">{fmtINR(row.emi)}</td>
                     <td className="text-right" style={{ color: row.prepayment > 0 ? "#a78bfa" : undefined }}>
