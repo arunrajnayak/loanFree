@@ -156,7 +156,7 @@ export function DashboardClient({
   const pieTotal = pieData.reduce((s, d) => s + d.value, 0);
 
   return (
-    <motion.div variants={wrap} initial="hidden" animate="show" className="space-y-6 pt-6">
+    <motion.div variants={wrap} initial="hidden" animate="show" className="space-y-5 pt-6">
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <motion.div variants={fadeUp} className="relative overflow-hidden rounded-2xl px-6 py-5"
@@ -165,7 +165,6 @@ export function DashboardClient({
           border: "1px solid rgba(255,255,255,0.07)",
         }}
       >
-        {/* ambient blobs */}
         <div className="pointer-events-none absolute -top-20 -left-10 w-72 h-72 rounded-full opacity-20"
           style={{ background: "radial-gradient(circle, rgba(59,130,246,0.5) 0%, transparent 65%)" }} />
         <div className="pointer-events-none absolute -bottom-16 right-10 w-56 h-56 rounded-full opacity-15"
@@ -173,19 +172,32 @@ export function DashboardClient({
 
         <div className="relative z-10 flex items-center justify-between gap-6 flex-wrap">
           <div>
-            <p className="text-xs text-slate-500 mb-1 font-medium">
-              Home Loan &nbsp;·&nbsp; {loan.interestRate}% p.a. &nbsp;·&nbsp; {loan.tenureYears}-yr tenure &nbsp;·&nbsp; EMI {fmtINR(loan.emi)}/mo
-            </p>
-            <h1 className="text-3xl font-bold text-white tracking-tight">{loan.name}</h1>
+            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">{loan.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                `${loan.interestRate}% p.a.`,
+                `${loan.tenureYears}-yr tenure`,
+                `EMI ${fmtINR(loan.emi)}/mo`,
+                `${stats.disbursementCount} tranches`,
+              ].map((chip) => (
+                <span key={chip}
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-full"
+                  style={{ background: "rgba(255,255,255,0.06)", color: "#94a3b8", border: "1px solid rgba(255,255,255,0.08)" }}
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
           </div>
 
-          {/* Outstanding balance pill */}
-          <div className="flex items-center gap-3 rounded-xl px-4 py-2.5"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <div>
-              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Outstanding</p>
-              <p className="text-xl font-bold text-white mt-0.5">{fmtL(stats.outstandingBalance)}</p>
-              <p className="text-xs text-slate-500">{fmtINR(stats.outstandingBalance)}</p>
+          <div className="flex flex-col items-end gap-1">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Outstanding</p>
+            <p className="text-3xl font-bold text-white">{fmtL(stats.outstandingBalance)}</p>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-400" style={{ boxShadow: "0 0 6px #f87171" }} />
+              <p className="text-xs text-slate-500">
+                {((stats.outstandingBalance / stats.totalDisbursed) * 100).toFixed(1)}% of {fmtL(stats.totalDisbursed)} disbursed
+              </p>
             </div>
           </div>
         </div>
@@ -194,7 +206,7 @@ export function DashboardClient({
       {/* ── 3 KPI CARDS ────────────────────────────────────────────────────── */}
       <motion.div variants={fadeUp} className="grid gap-4 sm:grid-cols-3">
 
-        {/* KPI 1 — Loan Repaid */}
+        {/* KPI 1 — Principal Repaid */}
         <motion.div
           whileHover={{ y: -5, scale: 1.01 }}
           transition={{ type: "spring", stiffness: 300, damping: 22 }}
@@ -209,7 +221,7 @@ export function DashboardClient({
             style={{ background: "radial-gradient(circle, rgba(16,185,129,0.8) 0%, transparent 70%)" }} />
 
           <div className="flex items-start justify-between gap-2 mb-3">
-            <p className="text-xs font-medium text-emerald-300/70">Loan repaid</p>
+            <p className="text-xs font-medium text-emerald-300/70">Principal repaid</p>
             <GlowRing pct={pctRepaid} color="#34d399" size={72} sw={5} bg="rgba(52,211,153,0.08)" />
           </div>
           <p className="text-[2.25rem] font-bold leading-none mb-2">
@@ -218,8 +230,9 @@ export function DashboardClient({
             </GText>
           </p>
           <Bar pct={pctRepaid} gradient="linear-gradient(90deg,#34d399,#10b981)" />
-          <p className="mt-2 text-xs text-emerald-200/50">
-            {fmtL(stats.totalPrincipalPaid)} repaid &nbsp;·&nbsp; {fmtL(stats.outstandingBalance)} remaining
+          <p className="mt-2.5 text-sm font-semibold" style={{ color: "#34d399" }}>
+            <Counter value={stats.totalPrincipalPaid} formatter={fmtL} />
+            <span className="text-xs font-normal text-emerald-300/40 ml-1.5">of {fmtL(stats.totalDisbursed)}</span>
           </p>
         </motion.div>
 
@@ -245,11 +258,11 @@ export function DashboardClient({
             <GText gradient="linear-gradient(135deg,#a5b4fc,#818cf8,#6366f1)">
               <Counter value={stats.emiPaymentsCount} />
             </GText>
-            <span className="text-xl text-indigo-300/50 font-normal ml-1">/ {totalMonths}</span>
+            <span className="text-xl text-indigo-300/40 font-normal ml-1">/ {totalMonths}</span>
           </div>
           <Bar pct={pctTime} gradient="linear-gradient(90deg,#a5b4fc,#6366f1)" />
-          <p className="mt-2 text-xs text-indigo-200/50">
-            {remaining} months remaining
+          <p className="mt-2.5 text-xs text-indigo-300/50">
+            <span className="text-sm font-semibold text-indigo-300">{remaining}</span> months left
           </p>
         </motion.div>
 
@@ -283,50 +296,42 @@ export function DashboardClient({
           <div className="h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
             <div className="h-full rounded-full w-full" style={{ background: "linear-gradient(90deg,#fde68a,#f59e0b)" }} />
           </div>
-          <p className="mt-2 text-xs text-amber-200/50">
-            ≈ {(stats.totalMonthsSaved / 12).toFixed(1)} years ahead of schedule
+          <p className="mt-2.5 text-xs text-amber-200/50">
+            ≈ <span className="text-amber-300 font-semibold">{(stats.totalMonthsSaved / 12).toFixed(1)} yrs</span> ahead of schedule
           </p>
         </motion.div>
       </motion.div>
 
-      {/* ── 6 STAT CARDS ───────────────────────────────────────────────────── */}
-      <motion.div variants={fadeUp} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* ── 4 STAT CARDS ───────────────────────────────────────────────────── */}
+      <motion.div variants={fadeUp} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {([
           {
-            label: "Outstanding principal", value: stats.outstandingBalance,
-            sub: `${((stats.outstandingBalance / stats.totalDisbursed) * 100).toFixed(1)}% of disbursed`,
-            accent: "#ef4444", glow: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.18)",
-            grad: "linear-gradient(135deg,rgba(239,68,68,0.08),rgba(220,38,38,0.03))",
-          },
-          {
             label: "Total disbursed", value: stats.totalDisbursed,
-            sub: `${stats.disbursementCount} tranches from bank`,
+            sub: "From bank",
             accent: "#60a5fa", glow: "rgba(59,130,246,0.12)", border: "rgba(59,130,246,0.18)",
             grad: "linear-gradient(135deg,rgba(59,130,246,0.08),rgba(37,99,235,0.03))",
-          },
-          {
-            label: "Paid to bank", value: stats.totalPaidToBank,
-            sub: "EMIs + prepayments combined",
-            accent: "#34d399", glow: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.18)",
-            grad: "linear-gradient(135deg,rgba(16,185,129,0.08),rgba(5,150,105,0.03))",
+            icon: "🏦",
           },
           {
             label: "Interest paid", value: stats.totalInterestPaid,
             sub: `${((stats.totalInterestPaid / stats.totalPaidToBank) * 100).toFixed(1)}% of bank payments`,
             accent: "#fbbf24", glow: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.18)",
             grad: "linear-gradient(135deg,rgba(245,158,11,0.08),rgba(217,119,6,0.03))",
+            icon: "📈",
           },
           {
             label: "Principal repaid", value: stats.totalPrincipalPaid,
-            sub: `${pctRepaid.toFixed(1)}% of disbursed amount`,
+            sub: `${pctRepaid.toFixed(1)}% of disbursed`,
             accent: "#4ade80", glow: "rgba(34,197,94,0.12)", border: "rgba(34,197,94,0.18)",
             grad: "linear-gradient(135deg,rgba(34,197,94,0.08),rgba(22,163,74,0.03))",
+            icon: "✅",
           },
           {
             label: "Own contribution", value: stats.totalPaidToBuilder,
-            sub: "Paid directly to builder",
+            sub: "Paid to builder",
             accent: "#c084fc", glow: "rgba(139,92,246,0.12)", border: "rgba(139,92,246,0.18)",
             grad: "linear-gradient(135deg,rgba(139,92,246,0.08),rgba(109,40,217,0.03))",
+            icon: "🏠",
           },
         ] as const).map((s, i) => (
           <motion.div
@@ -341,7 +346,10 @@ export function DashboardClient({
           >
             <div className="pointer-events-none absolute -right-4 -bottom-4 w-20 h-20 rounded-full"
               style={{ background: `radial-gradient(circle, ${s.glow.replace("0.12","0.4")} 0%, transparent 70%)` }} />
-            <p className="text-xs font-medium text-slate-400 mb-2">{s.label}</p>
+            <div className="flex items-start justify-between mb-3">
+              <p className="text-xs font-medium text-slate-400">{s.label}</p>
+              <span className="text-base opacity-60">{s.icon}</span>
+            </div>
             <p className="text-[1.75rem] font-bold leading-none" style={{ color: s.accent }}>
               <Counter value={s.value} formatter={fmtL} delay={i * 0.05} />
             </p>
@@ -396,11 +404,11 @@ export function DashboardClient({
         <div className="glass p-5 lg:col-span-3" style={{ boxShadow: "0 4px 24px rgba(245,158,11,0.06)" }}>
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-white">Monthly interest charged</h3>
-              <p className="text-xs text-slate-500 mt-0.5">From bank statements</p>
+              <h3 className="text-sm font-semibold text-white">Monthly interest</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Charged by bank each month</p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-slate-500">Total</p>
+              <p className="text-xs text-slate-500">Total paid</p>
               <p className="text-base font-bold" style={{ color: "#fbbf24" }}>{fmtL(stats.totalInterestPaid)}</p>
             </div>
           </div>
