@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   }
 
   const db = getDb();
-  const result = db
+  const result = await db
     .select()
     .from(disbursements)
     .where(eq(disbursements.loanId, parseInt(loanId)))
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   const body = await request.json();
   const db = getDb();
-  const result = db
+  const result = await db
     .insert(disbursements)
     .values({
       loanId: body.loanId,
@@ -42,7 +42,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
   const db = getDb();
-  const result = db
+  const result = await db
     .update(disbursements)
     .set({
       date: body.date,
@@ -65,7 +65,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
   const db = getDb();
-  const result = db
+  const result = await db
     .delete(disbursements)
     .where(eq(disbursements.id, parseInt(id)))
     .returning()
